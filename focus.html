@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI-надзиратель</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+  #app { position: fixed; inset: 0; }
+  #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transform: scaleX(-1); }
+  #hud { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 12px; right: 12px; display: flex; justify-content: space-between; font-size: 20px; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,.9); pointer-events: none; }
+  #status { color: #4ade80; }
+  #status.bad { color: #f87171; }
+  .btn { position: absolute; border: none; border-radius: 999px; padding: 18px 32px; font-size: 18px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
+  #startBtn { inset: 0; margin: auto; width: fit-content; height: fit-content; background: #4ade80; color: #000; }
+  #finishBtn { bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); left: 50%; transform: translateX(-50%); background: #f87171; color: #000; display: none; z-index: 5; }
+  #loading { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(0,0,0,.85); font-size: 17px; line-height: 1.5; }
+  #result { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,.92); text-align: center; padding: 24px; }
+  #result h1 { font-size: 30px; margin-bottom: 20px; color: #4ade80; }
+  #result .big { font-size: 84px; font-weight: 800; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="overlay"></canvas>
+  <div id="hud">
+    <div id="status">—</div>
+    <div id="counter">0</div>
+  </div>
+  <button id="startBtn" class="btn">Начать</button>
+  <button id="finishBtn" class="btn">Я всё</button>
+  <div id="loading">Загрузка…</div>
+  <div id="result">
+    <h1>Готово!</h1>
+    <div>Ты отвлекался</div>
+    <div class="big" id="resultCount">0</div>
+    <div>раз</div>
+  </div>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const counterEl = document.getElementById('counter');
+const startBtn = document.getElementById('startBtn');
+const finishBtn = document.getElementById('finishBtn');
+const loadingEl = document.getElementById('loading');
+const resultEl = document.getElementById('result');
+const resultCountEl = document.getElementById('resultCount');
+
+// ==== НАСТРОЙКИ ====
+const TURN_THRESHOLD = 0.65;  // меньше = строже (0.55 строго, 0.7 мягко)
+const AWAY_SECONDS = 3.0;     // сколько секунд отвлечён = засчитать
+// ===================
+
+let faceLandmarker = null;
+let stream = null;
+let running = false;
+let distractions = 0;
+let awaySince = null;
+let counted = false;
+let lastSpeak = 0;
+let lastVideoTime = -1;
+
+// ---------- ГОЛОС ----------
+let ruVoice = null;
+function pickVoice() {
+  const v = speechSynthesis.getVoices().find(x => x.lang && x.lang.startsWith('ru'));
+  if (v) ruVoice = v;
+}
+speechSynthesis.onvoiceschanged = pickVoice;
+pickVoice();
+
+function speak(text) {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU';
+    u.rate = 1.05;
+    if (ruVoice) u.voice = ruVoice;
+    speechSynthesis.speak(u);
+  } catch (e) { console.warn('TTS:', e); }
+}
+
+// ---------- РАЗМЕР КАНВАСА ----------
+function resize() {
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+}
+window.addEventListener('resize', resize);
+video.addEventListener('loadedmetadata', resize);
+
+// ---------- ПОВОРОТ ГОЛОВЫ ----------
+function headTurned(lm) {
+  const nose = lm[1];
+  const lCheek = lm[234];
+  const rCheek = lm[454];
+  const dl = Math.hypot(nose.x - lCheek.x, nose.y - lCheek.y);
+  const dr = Math.hypot(nose.x - rCheek.x, nose.y - rCheek.y);
+  if (dl === 0 || dr === 0) return true;
+  const ratio = dl / dr;
+  return ratio < TURN_THRESHOLD || ratio > 1 / TURN_THRESHOLD;
+}
+
+// ---------- ЗАГРУЗКА МОДЕЛИ ----------
+async function loadModel() {
+  const fileset = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm'
+  );
+  const opts = {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+      delegate: 'GPU'
+    },
+    runningMode: 'VIDEO',
+    numFaces: 1
+  };
+  try {
+    faceLandmarker = await FaceLandmarker.createFromOptions(fileset, opts);
+  } catch (e) {
+    console.warn('GPU не сработал, пробую CPU:', e);
+    opts.baseOptions.delegate = 'CPU';
+    faceLandmarker = await FaceLandmarker.createFromOptions(fileset, opts);
+  }
+}
+
+// ---------- ГЛАВНЫЙ ЦИКЛ ----------
+function loop() {
+  if (!running) return;
+
+  if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    let distracted = false;
+
+    try {
+      const res = faceLandmarker.detectForVideo(video, performance.now());
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (res.faceLandmarks && res.faceLandmarks.length) {
+        const lm = res.faceLandmarks[0];
+        distracted = headTurned(lm);
+        const nx = lm[1].x * canvas.width;
+        const ny = lm[1].y * canvas.height;
+        ctx.beginPath();
+        ctx.arc(nx, ny, 9, 0, Math.PI * 2);
+        ctx.fillStyle = distracted ? '#f87171' : '#4ade80';
+        ctx.fill();
+      } else {
+        distracted = true; // лица нет — точно отвлёкся
+      }
+    } catch (e) { console.warn('detect:', e); }
+
+    const now = performance.now() / 1000;
+    if (distracted) {
+      if (awaySince === null) { awaySince = now; counted = false; }
+      else if (now - awaySince > AWAY_SECONDS && !counted) {
+        distractions++;
+        counterEl.textContent = distractions;
+        counted = true;
+        if (now - lastSpeak > 4) { speak('Вернись к урокам'); lastSpeak = now; }
+      }
+    } else {
+      awaySince = null;
+      counted = false;
+    }
+
+    statusEl.textContent = distracted ? 'ОТВЛЁКСЯ' : 'РАБОТАЕШЬ';
+    statusEl.className = distracted ? 'bad' : '';
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ---------- СТАРТ ----------
+startBtn.addEventListener('click', async () => {
+  // «прогрев» голоса — на iPhone первый speak должен идти из жеста
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
+
+  startBtn.style.display = 'none';
+  loadingEl.style.display = 'flex';
+  loadingEl.textContent = 'Включаю камеру…';
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    loadingEl.textContent = 'Загружаю нейросеть (первый раз ~10 МБ)…';
+    await loadModel();
+
+    loadingEl.style.display = 'none';
+    finishBtn.style.display = 'block';
+    running = true;
+    speak('Начинаем. Сосредоточься на уроках.');
+    requestAnimationFrame(loop);
+  } catch (e) {
+    console.error(e);
+    loadingEl.textContent = 'Ошибка: ' + (e.message || e) +
+      '\n\nПроверь: разрешён ли доступ к камере и открыта ли страница по HTTPS.';
+  }
+});
+
+// ---------- ФИНИШ ----------
+finishBtn.addEventListener('click', () => {
+  running = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  finishBtn.style.display = 'none';
+  resultCountEl.textContent = distractions;
+  resultEl.style.display = 'flex';
+  speak(`Молодец! Ты отвлекался ${distractions} ${plural(distractions)}. Уроки сделаны.`);
+});
+
+function plural(n) {
+  const a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return 'раз';
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'раза';
+  return 'раз';
+}
+</script>
+</body>
+</html>
