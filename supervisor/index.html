@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мои проекты</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, sans-serif; }
+  body { background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  
+  h1 { font-size: 32px; margin-bottom: 10px; text-align: center; background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  p { color: #94a3b8; margin-bottom: 40px; text-align: center; }
+  
+  .projects { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 400px; }
+  
+  .card { background: #1e293b; padding: 20px; border-radius: 15px; text-decoration: none; color: #fff; border: 2px solid #334155; transition: 0.3s; display: flex; align-items: center; gap: 15px; }
+  .card:hover { border-color: #38bdf8; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+  
+  .icon { font-size: 30px; }
+  .card-text h2 { font-size: 20px; margin-bottom: 5px; }
+  .card-text p { margin: 0; font-size: 14px; text-align: left; }
+</style>
+</head>
+<body>
+
+  <h1>Мои первые проекты</h1>
+  <p>Выбери приложение для запуска</p>
+
+  <div class="projects">
+    <a href="focus.html" class="card">
+      <div class="icon">🎯</div>
+      <div class="card-text">
+        <h2>Умный Фокус</h2>
+        <p>ыAI-надзиратель</p>
+      </div>
+    </a>
+
+    <a href="tests.html" class="card">
+      <div class="icon">📝</div>
+      <div class="card-text">
+        <h2>AI-Генератор тестов</h2>
+        <p>Создание школьных тестов за 5 секунд</p>
+      </div>
+    </a>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Генератор тестов для учителей</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+  body { background: #1e293b; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  
+  .container { background: #334155; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; text-align: center; }
+  h1 { font-size: 24px; margin-bottom: 10px; color: #38bdf8; }
+  p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; line-height: 1.5; }
+
+  /* Поле ввода промокода */
+  .promo-box { display: flex; flex-direction: column; gap: 10px; }
+  input[type="text"] { padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #1e293b; color: #fff; font-size: 18px; text-align: center; text-transform: uppercase; outline: none; }
+  input[type="text"]:focus { border-color: #38bdf8; }
+  
+  button { padding: 15px; border-radius: 10px; border: none; background: #38bdf8; color: #000; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  button:hover { background: #0ea5e9; transform: scale(1.02); }
+  
+  /* Сообщение об ошибке */
+  #error-msg { color: #f87171; font-weight: bold; margin-top: 10px; display: none; }
+
+  /* Скрытый блок с генератором */
+  #app-section { display: none; margin-top: 20px; text-align: left; }
+  textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #1e293b; color: #fff; font-size: 16px; height: 100px; resize: none; margin-bottom: 10px; }
+  
+  .badge { display: inline-block; background: #10b981; color: #000; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ЭКРАН 1: Ввод промокода -->
+  <div id="promo-section">
+    <h1>AI-Генератор тестов</h1>
+    <p>Инструмент для учителей и репетиторов. Создавайте тесты за 5 секунд.</p>
+    
+    <div class="promo-box">
+      <input type="text" id="promo-input" placeholder="Введите промокод">
+      <button onclick="checkPromo()">Активировать</button>
+    </div>
+    <div id="error-msg">Неверный промокод. Попробуйте еще раз.</div>
+  </div>
+
+  <!-- ЭКРАН 2: Сам генератор (появится после ввода кода) -->
+  <div id="app-section">
+    <div class="badge">Доступ открыт (Pro версия)</div>
+    <h1>Создать новый тест</h1>
+    <p>Введите тему и класс, а нейросеть сделает всё сама.</p>
+    
+    <textarea id="topic-input" placeholder="Например: Дроби, 5 класс"></textarea>
+    <button onclick="generateTest()">Сгенерировать тест</button>
+    <p id="result-text" style="margin-top: 20px; color: #10b981; display: none;">Здесь будет ваш тест...</p>
+  </div>
+</div>
+
+<script>
+  // --- СПИСОК ПРОМОКОДОВ ---
+  // Позже ты сможешь добавить сюда любые другие коды
+  const validPromoCodes = [
+    "GLEB2024",
+    "FREE_TEACHER",
+    "TEST100"
+  ];
+
+  // Функция проверки промокода
+  function checkPromo() {
+    const input = document.getElementById('promo-input').value.toUpperCase().trim();
+    const errorMsg = document.getElementById('error-msg');
+    
+    // Если код есть в списке
+    if (validPromoCodes.includes(input)) {
+      // Сохраняем в память браузера, чтобы не вводить каждый раз
+      localStorage.setItem('hasAccess', 'true');
+      
+      // Прячем экран с промокодом, показываем генератор
+      document.getElementById('promo-section').style.display = 'none';
+      document.getElementById('app-section').style.display = 'block';
+    } else {
+      // Если код неверный — показываем ошибку
+      errorMsg.style.display = 'block';
+      errorMsg.style.animation = "shake 0.3s";
+    }
+  }
+
+  // Проверка при загрузке страницы (если пользователь уже вводил код ранее)
+  window.onload = function() {
+    if (localStorage.getItem('hasAccess') === 'true') {
+      document.getElementById('promo-section').style.display = 'none';
+      document.getElementById('app-section').style.display = 'block';
+    }
+  }
+
+  // Заглушка для генератора (пока без нейросети)
+  function generateTest() {
+    const topic = document.getElementById('topic-input').value;
+    const result = document.getElementById('result-text');
+    
+    if (topic.length < 3) {
+      alert("Напишите тему подробнее!");
+      return;
+    }
+    
+    result.style.display = 'block';
+    result.innerText = `Генерирую тест по теме "${topic}"... (Здесь мы позже подключим нейросеть, которая выдаст вопросы!)`;
+  }
+</script>
+</body>
+</html>
