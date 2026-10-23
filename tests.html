@@ -3,32 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI-Генератор тестов</title>
+<title>AI-Помощник учителя</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
   body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-  
-  .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; }
+  .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 700px; }
   h1 { font-size: 28px; margin-bottom: 10px; color: #38bdf8; text-align: center; }
   p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; text-align: center; line-height: 1.5; }
-
-  /* Экран ввода промокода */
+  
   #promo-section { text-align: center; }
   input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 18px; text-align: center; text-transform: uppercase; outline: none; margin-bottom: 15px; }
-  input[type="text"]:focus { border-color: #38bdf8; }
   .btn-activate { background: #38bdf8; color: #000; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
-  .btn-activate:hover { background: #0ea5e9; }
   #error-msg { color: #f87171; margin-top: 15px; font-weight: bold; display: none; }
 
-  /* Экран генератора */
   #app-section { display: none; }
   textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 16px; height: 100px; resize: none; margin-bottom: 15px; outline: none; }
-  textarea:focus { border-color: #38bdf8; }
   .btn-gen { background: #10b981; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
-  .btn-gen:hover { background: #059669; }
+  .btn-gen:disabled { background: #64748b; cursor: not-allowed; }
   
   #result { margin-top: 20px; background: #0f172a; padding: 20px; border-radius: 10px; border: 1px solid #334155; display: none; white-space: pre-wrap; font-size: 15px; line-height: 1.6; }
   
+  /* Стили для новых кнопок */
+  .action-btns { display: none; gap: 10px; margin-top: 15px; }
+  .action-btns button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+  .btn-copy { background: #8b5cf6; color: #fff; }
+  .btn-copy:hover { background: #7c3aed; }
+  .btn-download { background: #f59e0b; color: #000; }
+  .btn-download:hover { background: #d97706; }
+
   .badge { display: inline-block; background: #10b981; color: #000; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 20px; }
   #loading-text { display: none; color: #38bdf8; text-align: center; margin-top: 15px; font-weight: bold; }
 </style>
@@ -36,98 +38,153 @@
 <body>
 
 <div class="container">
-  
-  <!-- ЭКРАН 1: ВВОД ПРОМОКОДА -->
   <div id="promo-section">
-    <h1>AI-Генератор тестов</h1>
-    <p>Введите ваш промокод доступа, чтобы открыть Pro-версию.</p>
-    
-    <input type="text" id="promo-input" placeholder="Ваш промокод">
+    <h1>AI-Помощник учителя</h1>
+    <p>Введите ваш промокод доступа.</p>
+    <input type="text" id="promo-input" placeholder="Промокод">
     <button class="btn-activate" onclick="checkPromo()">Войти</button>
-    <div id="error-msg">Неверный промокод. Проверьте написание.</div>
+    <div id="error-msg">Неверный промокод.</div>
   </div>
 
-  <!-- ЭКРАН 2: ГЕНЕРАТОР -->
   <div id="app-section">
     <div style="text-align: center;"><div class="badge">PRO версия активна</div></div>
-    <h1>Новый тест</h1>
-    <p>Введите тему, и нейросеть составит вопросы.</p>
+    <h1>Генератор плана урока</h1>
+    <p>Введите тему и класс. Нейросеть (Llama 3) составит план.</p>
     
-    <textarea id="topic-input" placeholder="Например: Строение клетки, биология 6 класс"></textarea>
-    <button class="btn-gen" onclick="generateTest()">Сгенерировать тест</button>
+    <textarea id="topic-input" placeholder="Например: Вторая мировая война, 9 класс"></textarea>
+    <button id="gen-btn" class="btn-gen" onclick="generateLesson()">Составить план урока</button>
     <div id="loading-text">Нейросеть думает... ⏳</div>
     
     <div id="result"></div>
+    
+    <!-- Кнопки для копирования и скачивания -->
+    <div class="action-btns" id="action-btns">
+      <button class="btn-copy" onclick="copyText()">📋 Скопировать</button>
+      <button class="btn-download" onclick="downloadWord()">📄 Скачать в Word</button>
+    </div>
   </div>
-
 </div>
 
 <script>
-  // --- СПИСОК ПРОМОКОДОВ ---
-  const validPromoCodes = [
-    "GLEB2024",
-    "FREE_TEACHER",
-    "TEST100"
-  ];
+  const validPromoCodes = ["GLEB2024", "FREE_TEACHER", "TEST100"];
 
-  // --- ПРОВЕРКА ПРОМОКОДА ---
   function checkPromo() {
     const input = document.getElementById('promo-input').value.toUpperCase().trim();
-    const errorMsg = document.getElementById('error-msg');
-    
     if (validPromoCodes.includes(input)) {
-      localStorage.setItem('hasAccess', 'true'); // Запоминаем, что доступ получен
-      showApp(); // Показываем генератор
+      localStorage.setItem('hasAccess', 'true');
+      showApp();
     } else {
-      errorMsg.style.display = 'block';
+      document.getElementById('error-msg').style.display = 'block';
     }
   }
 
-  // --- ПОКАЗ ГЕНЕРАТОРА ---
   function showApp() {
     document.getElementById('promo-section').style.display = 'none';
     document.getElementById('app-section').style.display = 'block';
   }
 
-  // Проверяем доступ при загрузке страницы
   window.onload = function() {
-    if (localStorage.getItem('hasAccess') === 'true') {
-      showApp();
-    }
+    if (localStorage.getItem('hasAccess') === 'true') showApp();
   }
 
-  // --- ИМИТАЦИЯ НЕЙРОСЕТИ ---
-  function generateTest() {
+  async function generateLesson() {
     const topic = document.getElementById('topic-input').value;
     const resultDiv = document.getElementById('result');
+    const actionBtns = document.getElementById('action-btns');
     const loading = document.getElementById('loading-text');
+    const btn = document.getElementById('gen-btn');
     
     if (topic.length < 3) {
-      alert("Напишите тему подробнее!");
+      alert("Напишите тему и класс подробнее!");
       return;
     }
     
     resultDiv.style.display = 'none';
+    actionBtns.style.display = 'none';
     loading.style.display = 'block';
+    btn.disabled = true;
+    btn.textContent = "Генерация...";
 
-    // Имитируем задержку нейросети (2 секунды)
-    setTimeout(() => {
-      loading.style.display = 'none';
+    try {
+      // Запрос к нашему защищенному серверу Cloudflare (модель 70b пишет подробнее)
+      const response = await fetch("https://damp-star-a8fb.gleb-kuzmin-2013m.workers.dev", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "llama3-70b-8192",
+          messages: [
+            { 
+              role: "system", 
+              content: "Ты — опытный методист и учитель. Составь ОЧЕНЬ ПОДРОБНЫЙ и развернутый план урока (минимум на 1 страницу текста). Распиши каждый этап урока детально, с примерами вопросов для учеников. Структурируй ответ строго по пунктам: 1. Тема и класс. 2. Цели и задачи. 3. Оборудование. 4. Ход урока (Организационный момент, Актуализация знаний, Изучение нового материала, Закрепление, Рефлексия, Домашнее задание). Пиши понятным, профессиональным языком."
+            },
+            { 
+              role: "user", 
+              content: "Тема: " + topic 
+            }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      const aiText = data.choices[0].message.content;
+      
       resultDiv.style.display = 'block';
+      resultDiv.innerHTML = aiText.replace(/\n/g, '<br>');
       
-      resultDiv.innerHTML = `<b>Тест по теме: "${topic}"</b><br><br>
-      <b>1.</b> Какой главный признак этой темы?<br>
-      А) Первый вариант<br>
-      Б) Второй вариант<br>
-      В) Правильный ответ<br><br>
-      
-      <b>2.</b> Выберите верное утверждение:<br>
-      А) Это ложь<br>
-      Б) Это правда<br>
-      В) Здесь нет правильного ответа<br><br>
-      
-      <i>(В будущем здесь появится настоящий сгенерированный тест с вопросами и ответами)</i>`;
-    }, 2000);
+      // Сохраняем текст для кнопок
+      window.generatedText = aiText;
+      actionBtns.style.display = 'flex';
+
+    } catch (error) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<span style="color: #f87171;">Ошибка: ${error.message}<br><br>Проверь соединение с сервером.</span>`;
+    } finally {
+      loading.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = "Составить план урока";
+    }
+  }
+
+  // --- ФУНКЦИЯ КОПИРОВАНИЯ ---
+  function copyText() {
+    if (!window.generatedText) return;
+    navigator.clipboard.writeText(window.generatedText).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      const oldText = btn.textContent;
+      btn.textContent = "✅ Скопировано!";
+      setTimeout(() => { btn.textContent = oldText; }, 2000);
+    });
+  }
+
+  // --- ФУНКЦИЯ СКАЧИВАНИЯ В WORD ---
+  function downloadWord() {
+    if (!window.generatedText) return;
+    
+    // Формируем HTML-документ для Word
+    const htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>План урока</title></head>
+      <body style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5;">
+        ${window.generatedText.replace(/\n/g, '<br>')}
+      </body>
+      </html>
+    `;
+    
+    // Создаем файл и скачиваем
+    const blob = new Blob([htmlContent], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'План_урока.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 </script>
 </body>
