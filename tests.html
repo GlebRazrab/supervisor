@@ -107,7 +107,7 @@
 
     try {
       // Запрос к нашему защищенному серверу Cloudflare (модель 70b пишет подробнее)
-      const response = await fetch("https://damp-star-a8fb.gleb-kuzmin-2013m.workers.dev", {
+      const response = await fetch("https://corsproxy.io/?https://damp-star-a8fb.gleb-kuzmin-2013m.workers.dev", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
