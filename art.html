@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Нейро-Художник</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+  body { background: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+  .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 600px; text-align: center; }
+  
+  h1 { font-size: 28px; margin-bottom: 10px; color: #a78bfa; }
+  p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; }
+  
+  textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 16px; height: 80px; resize: none; margin-bottom: 15px; outline: none; }
+  .btn-gen { background: #8b5cf6; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; margin-bottom: 20px; }
+  .btn-gen:hover { background: #7c3aed; transform: scale(1.02); }
+  .btn-gen:disabled { background: #64748b; cursor: not-allowed; }
+  
+  #image-container { display: none; flex-direction: column; align-items: center; gap: 15px; }
+  #result-img { width: 100%; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none; }
+  
+  #loading { display: none; color: #a78bfa; font-weight: bold; margin: 20px 0; font-size: 18px; }
+  
+  .btn-download { background: #10b981; color: #000; padding: 12px 20px; border-radius: 10px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; display: none; transition: 0.3s; }
+  .btn-download:hover { background: #059669; }
+  
+  .presets { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; }
+  .preset-btn { background: #334155; color: #fff; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: 0.3s; }
+  .preset-btn:hover { background: #475569; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎨 Нейро-Художник</h1>
+  <p>Опиши, что хочешь увидеть, и нейросеть нарисует это.</p>
+
+  <div class="presets">
+    <button class="preset-btn" onclick="setPrompt('Кот в космосе, стиль аниме')">Кот в космосе</button>
+    <button class="preset-btn" onclick="setPrompt('Замок на облаках, реалистично')">Замок на облаках</button>
+    <button class="preset-btn" onclick="setPrompt('Киберпанк город ночью, 3D')">Киберпанк город</button>
+  </div>
+  
+  <textarea id="prompt-input" placeholder="Например: Робот, поливающий цветы в стиле Ван Гога..."></textarea>
+  <button id="gen-btn" class="btn-gen" onclick="generateImage()">Нарисовать</button>
+
+  <div id="loading">Нейросеть рисует... Подожди 5-10 секунд ⏳</div>
+
+  <div id="image-container">
+    <img id="result-img" alt="Сгенерированная картинка">
+    <button class="btn-download" id="download-btn" onclick="downloadImage()">💾 Скачать картинку</button>
+  </div>
+</div>
+
+<script>
+  const genBtn = document.getElementById('gen-btn');
+  const loading = document.getElementById('loading');
+  const resultImg = document.getElementById('result-img');
+  const imageContainer = document.getElementById('image-container');
+  const downloadBtn = document.getElementById('download-btn');
+  let currentImageUrl = '';
+
+  // Кнопки быстрого выбора
+  function setPrompt(text) {
+    document.getElementById('prompt-input').value = text;
+  }
+
+  async function generateImage() {
+    const prompt = document.getElementById('prompt-input').value;
+    
+    if (prompt.length < 3) {
+      alert("Напиши описание картинки подробнее!");
+      return;
+    }
+
+    // Включаем загрузку
+    genBtn.disabled = true;
+    genBtn.textContent = "Рисует...";
+    loading.style.display = 'block';
+    imageContainer.style.display = 'flex';
+    resultImg.style.display = 'none';
+    downloadBtn.style.display = 'none';
+    // Формируем ссылку для картинки (добавляем размеры и убираем вотермарку)
+    const encodedPrompt = encodeURIComponent(prompt);
+    currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+    
+    // Загружаем картинку
+    resultImg.src = currentImageUrl;
+    
+    resultImg.onload = function() {
+      // Когда картинка загрузилась
+      loading.style.display = 'none';
+      resultImg.style.display = 'block';
+      downloadBtn.style.display = 'inline-block';
+      genBtn.disabled = false;
+      genBtn.textContent = "Нарисовать еще";
+    };
+
+    resultImg.onerror = function() {
+      loading.textContent = "Ошибка! Сервер перегружен. Попробуй еще раз.";
+      genBtn.disabled = false;
+      genBtn.textContent = "Попробовать снова";
+    };
+  }
+
+  // Скачивание картинки
+  async function downloadImage() {
+    try {
+      downloadBtn.textContent = "Загрузка...";
+      // Скачиваем файл через fetch, чтобы браузер его сохранил, а не открыл
+      const response = await fetch(currentImageUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'neuro_art.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      downloadBtn.textContent = "💾 Скачать картинку";
+    } catch (e) {
+      alert("Не удалось скачать. Нажми на картинку правой кнопкой мыши и выбери 'Сохранить изображение'.");
+      downloadBtn.textContent = "💾 Скачать картинку";
+    }
+  }
+</script>
+</body>
+</html>
