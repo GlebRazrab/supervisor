@@ -38,6 +38,7 @@
 
 <div class="container">
   <div id="promo-section">
+    <a href="index.html" style="display: inline-block; margin-bottom: 15px; color: #a78bfa; text-decoration: none; font-weight: bold; font-size: 16px;">← На главную</a>
     <h1>AI-Помощник учителя</h1>
     <p>Введите ваш промокод доступа.</p>
     <input type="text" id="promo-input" placeholder="Промокод">
@@ -167,6 +168,12 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  function clearForm() {
+  document.getElementById('topic-input').value = '';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('action-btns').style.display = 'none';
+  document.getElementById('gen-btn').textContent = "Составить план урока";
+}
 </script>
 </body>
 </html>
