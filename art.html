@@ -13,11 +13,13 @@
   p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; }
   
   textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 16px; height: 80px; resize: none; margin-bottom: 15px; outline: none; }
-  .btn-gen { background: #8b5cf6; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; margin-bottom: 20px; }
+  .btn-gen { background: #8b5cf6; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; margin-bottom: 10px; }
   .btn-gen:hover { background: #7c3aed; transform: scale(1.02); }
-  .btn-gen:disabled { background: #64748b; cursor: not-allowed; }
+  .btn-gen:disabled { background: #64748b; cursor: not-allowed; transform: none; }
   
-  #image-container { display: none; flex-direction: column; align-items: center; gap: 15px; }
+  .limit-text { font-size: 14px; color: #f59e0b; margin-bottom: 20px; display: none; }
+
+  #image-container { display: none; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px;}
   #result-img { width: 100%; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none; }
   
   #loading { display: none; color: #a78bfa; font-weight: bold; margin: 20px 0; font-size: 18px; }
@@ -28,6 +30,11 @@
   .presets { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; }
   .preset-btn { background: #334155; color: #fff; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: 0.3s; }
   .preset-btn:hover { background: #475569; }
+
+  .history-title { font-size: 16px; color: #94a3b8; margin-bottom: 10px; text-align: left; display: none; }
+  .history { display: none; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+  .history img { width: 100%; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+  .history img:hover { border-color: #a78bfa; transform: scale(1.05); }
 </style>
 </head>
 <body>
@@ -44,6 +51,8 @@
   
   <textarea id="prompt-input" placeholder="Например: Робот, поливающий цветы в стиле Ван Гога..."></textarea>
   <button id="gen-btn" class="btn-gen" onclick="generateImage()">Нарисовать</button>
+  
+  <div id="limit-text" class="limit-text">⏳ Подожди <span id="timer">45</span> секунд, сервер перегружен...</div>
 
   <div id="loading">Нейросеть рисует... Подожди 5-10 секунд ⏳</div>
 
@@ -51,6 +60,10 @@
     <img id="result-img" alt="Сгенерированная картинка">
     <button class="btn-download" id="download-btn" onclick="downloadImage()">💾 Скачать картинку</button>
   </div>
+
+  <div class="history-title" id="history-title">Твои последние картинки:</div>
+  <div class="history" id="history"></div>
+
 </div>
 
 <script>
@@ -59,14 +72,29 @@
   const resultImg = document.getElementById('result-img');
   const imageContainer = document.getElementById('image-container');
   const downloadBtn = document.getElementById('download-btn');
+  const historyDiv = document.getElementById('history');
+  const historyTitle = document.getElementById('history-title');
+  const limitText = document.getElementById('limit-text');
+  const timerSpan = document.getElementById('timer');
+  
   let currentImageUrl = '';
+  let historyArray = JSON.parse(localStorage.getItem('artHistory')) || [];
+  
+  // Переменные для таймера ограничений
+  let isCooldown = false;
+  let cooldownTime = 45; // Секунд
 
-  // Кнопки быстрого выбора
+  window.onload = function() {
+    renderHistory();
+  };
+
   function setPrompt(text) {
     document.getElementById('prompt-input').value = text;
   }
 
   async function generateImage() {
+    if (isCooldown) return; // Если идет отсчет, не даем нажать
+    
     const prompt = document.getElementById('prompt-input').value;
     
     if (prompt.length < 3) {
@@ -74,41 +102,93 @@
       return;
     }
 
-    // Включаем загрузку
-    genBtn.disabled = true;
+    // Запускаем таймер ограничения
+    startCooldown();
+
     genBtn.textContent = "Рисует...";
     loading.style.display = 'block';
     imageContainer.style.display = 'flex';
     resultImg.style.display = 'none';
     downloadBtn.style.display = 'none';
-    // Формируем ссылку для картинки (добавляем размеры и убираем вотермарку)
+
     const encodedPrompt = encodeURIComponent(prompt);
+    // Добавляем случайное число (seed), чтобы картинки не кэшировались
     currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
     
-    // Загружаем картинку
     resultImg.src = currentImageUrl;
     
     resultImg.onload = function() {
-      // Когда картинка загрузилась
       loading.style.display = 'none';
       resultImg.style.display = 'block';
       downloadBtn.style.display = 'inline-block';
-      genBtn.disabled = false;
       genBtn.textContent = "Нарисовать еще";
+      addToHistory(currentImageUrl);
     };
 
     resultImg.onerror = function() {
-      loading.textContent = "Ошибка! Сервер перегружен. Попробуй еще раз.";
-      genBtn.disabled = false;
+      loading.style.display = 'none';
+      alert("Ошибка! Не удалось загрузить картинку. Возможно, сервер перегружен. Попробуй через минуту.");
       genBtn.textContent = "Попробовать снова";
     };
   }
 
-  // Скачивание картинки
+  function startCooldown() {
+    isCooldown = true;
+    genBtn.disabled = true;
+    limitText.style.display = 'block';
+    let timeLeft = cooldownTime;
+    timerSpan.textContent = timeLeft;
+
+    const interval = setInterval(() => {
+      timeLeft--;
+      timerSpan.textContent = timeLeft;
+
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        isCooldown = false;
+        genBtn.disabled = false;
+        limitText.style.display = 'none';
+        genBtn.textContent = "Нарисовать еще";
+      }
+    }, 1000);
+  }
+
+  function addToHistory(url) {
+    historyArray.unshift(url);
+    if (historyArray.length > 4) historyArray.pop();
+    localStorage.setItem('artHistory', JSON.stringify(historyArray));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (historyArray.length === 0) {
+      historyTitle.style.display = 'none';
+      historyDiv.style.display = 'none';
+      return;
+    }
+
+    historyTitle.style.display = 'block';
+    historyDiv.style.display = 'grid';
+    historyDiv.innerHTML = ''; 
+
+    historyArray.forEach(url => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.onclick = () => {
+        currentImageUrl = url;
+        resultImg.src = url;
+        resultImg.style.display = 'block';
+        imageContainer.style.display = 'flex';
+        downloadBtn.style.display = 'inline-block';
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+      };
+      historyDiv.appendChild(img);
+    });
+  }
+
   async function downloadImage() {
     try {
       downloadBtn.textContent = "Загрузка...";
-      // Скачиваем файл через fetch, чтобы браузер его сохранил, а не открыл
       const response = await fetch(currentImageUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
