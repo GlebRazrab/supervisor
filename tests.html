@@ -62,7 +62,6 @@
 </div>
 
 <script>
-  // Проверка промокодов
   const validPromoCodes = ["GLEB2024", "FREE_TEACHER", "TEST100"];
 
   function checkPromo() {
@@ -70,7 +69,7 @@
     if (validPromoCodes.includes(input)) {
       localStorage.setItem('hasAccess', 'true');
       showApp();
-      } else {
+    } else {
       document.getElementById('error-msg').style.display = 'block';
     }
   }
@@ -80,12 +79,10 @@
     document.getElementById('app-section').style.display = 'block';
   }
 
-  // Проверяем, входил ли пользователь ранее
   window.onload = function() {
     if (localStorage.getItem('hasAccess') === 'true') showApp();
   }
 
-  // Генерация плана
   async function generateLesson() {
     const topic = document.getElementById('topic-input').value;
     const resultDiv = document.getElementById('result');
