@@ -41,7 +41,7 @@
 
 <div class="container">
   <h1>🎨 Нейро-Художник</h1>
-  <p>Опиши, что хочешь увидеть (на русском), а нейросеть переведет и нарисует.</p>
+  <p>Опиши, что хочешь увидеть (на русском), а нейросеть нарисует.</p>
 
   <div class="presets">
     <button class="preset-btn" onclick="setPrompt('Кот в космосе, стиль аниме')">Кот в космосе</button>
@@ -54,7 +54,7 @@
   
   <div id="limit-text" class="limit-text">⏳ Подожди <span id="timer">45</span> секунд, сервер перегружен...</div>
 
-  <div id="loading">Нейросеть рисует... Подожди 5-10 секунд ⏳</div>
+  <div id="loading">Нейросеть думает... ⏳</div>
 
   <div id="image-container">
     <img id="result-img" alt="Сгенерированная картинка">
@@ -93,27 +93,32 @@
     if (prompt.length < 3) { alert("Напиши описание подробнее!"); return; }
 
     startCooldown();
-    genBtn.textContent = "Перевожу...";
+    genBtn.textContent = "Генерация...";
     loading.style.display = 'block';
-    loading.textContent = "Нейросеть переводит запрос на английский... ⏳";
+    loading.textContent = "Нейросеть обрабатывает запрос... ⏳";
     imageContainer.style.display = 'flex';
     resultImg.style.display = 'none';
     downloadBtn.style.display = 'none';
 
-    try {
-      // ШАГ 1: Просим текстовую нейросеть перевести наш запрос на английский
-      const translatePrompt = encodeURIComponent(`Translate this into a short English prompt for an image generator. Just give me the English text, no explanations: "${prompt}"`);
-      const transResponse = await fetch("https://text.pollinations.ai/" + translatePrompt);
-      let englishPrompt = await transResponse.text();
-      
-      // Очищаем от лишних кавычек, если нейросеть их добавила
-      englishPrompt = englishPrompt.replace(/["']/g, '').trim();
+    let finalPrompt = prompt; // По умолчанию используем русский текст
 
+    try {
+      // ПЫТАЕМСЯ ПЕРЕВЕСТИ ЧЕРЕЗ MYMEMORY API
+      const transResponse = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(prompt)}&langpair=ru|en`);
+      const transData = await transResponse.json();
+      
+      if (transData.responseData && transData.responseData.translatedText) {
+        finalPrompt = transData.responseData.translatedText;
+      }
+    } catch (e) {
+      console.log("Перевод не удался, используем оригинальный текст.");
+    }
+
+    try {
       loading.textContent = "Рисую картинку... ⏳";
       
-      // ШАГ 2: Отправляем английский запрос на генерацию картинки
-      const encodedPrompt = encodeURIComponent(englishPrompt);
-      // Используем модель flux и добавляем высокое качество
+      // Генерируем картинку (используем модель flux)
+      const encodedPrompt = encodeURIComponent(finalPrompt);
       currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
       
       resultImg.src = currentImageUrl;
@@ -128,12 +133,12 @@
 
       resultImg.onerror = function() {
         loading.style.display = 'none';
-        alert("Ошибка генерации. Попробуй еще раз.");
+        alert("Ошибка генерации. Сервер перегружен. Попробуй еще раз.");
         genBtn.textContent = "Попробовать снова";
       };
     } catch (e) {
       loading.style.display = 'none';
-      alert("Ошибка перевода. Попробуй еще раз.");
+      alert("Ошибка. Попробуй еще раз.");
       genBtn.textContent = "Попробовать снова";
     }
   }
