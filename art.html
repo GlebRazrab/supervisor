@@ -41,7 +41,7 @@
 
 <div class="container">
   <h1>🎨 Нейро-Художник</h1>
-  <p>Опиши, что хочешь увидеть, и нейросеть нарисует это.</p>
+  <p>Опиши, что хочешь увидеть (на русском), а нейросеть переведет и нарисует.</p>
 
   <div class="presets">
     <button class="preset-btn" onclick="setPrompt('Кот в космосе, стиль аниме')">Кот в космосе</button>
@@ -79,57 +79,63 @@
   
   let currentImageUrl = '';
   let historyArray = JSON.parse(localStorage.getItem('artHistory')) || [];
-  
-  // Переменные для таймера ограничений
   let isCooldown = false;
-  let cooldownTime = 45; // Секунд
+  let cooldownTime = 45;
 
-  window.onload = function() {
-    renderHistory();
-  };
+  window.onload = function() { renderHistory(); };
 
-  function setPrompt(text) {
-    document.getElementById('prompt-input').value = text;
-  }
+  function setPrompt(text) { document.getElementById('prompt-input').value = text; }
 
   async function generateImage() {
-    if (isCooldown) return; // Если идет отсчет, не даем нажать
+    if (isCooldown) return;
     
     const prompt = document.getElementById('prompt-input').value;
-    
-    if (prompt.length < 3) {
-      alert("Напиши описание картинки подробнее!");
-      return;
-    }
+    if (prompt.length < 3) { alert("Напиши описание подробнее!"); return; }
 
-    // Запускаем таймер ограничения
     startCooldown();
-
-    genBtn.textContent = "Рисует...";
+    genBtn.textContent = "Перевожу...";
     loading.style.display = 'block';
+    loading.textContent = "Нейросеть переводит запрос на английский... ⏳";
     imageContainer.style.display = 'flex';
     resultImg.style.display = 'none';
     downloadBtn.style.display = 'none';
 
-    const encodedPrompt = encodeURIComponent(prompt);
-    // Добавляем случайное число (seed), чтобы картинки не кэшировались
-    currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
-    
-    resultImg.src = currentImageUrl;
-    
-    resultImg.onload = function() {
-      loading.style.display = 'none';
-      resultImg.style.display = 'block';
-      downloadBtn.style.display = 'inline-block';
-      genBtn.textContent = "Нарисовать еще";
-      addToHistory(currentImageUrl);
-    };
+    try {
+      // ШАГ 1: Просим текстовую нейросеть перевести наш запрос на английский
+      const translatePrompt = encodeURIComponent(`Translate this into a short English prompt for an image generator. Just give me the English text, no explanations: "${prompt}"`);
+      const transResponse = await fetch("https://text.pollinations.ai/" + translatePrompt);
+      let englishPrompt = await transResponse.text();
+      
+      // Очищаем от лишних кавычек, если нейросеть их добавила
+      englishPrompt = englishPrompt.replace(/["']/g, '').trim();
 
-    resultImg.onerror = function() {
+      loading.textContent = "Рисую картинку... ⏳";
+      
+      // ШАГ 2: Отправляем английский запрос на генерацию картинки
+      const encodedPrompt = encodeURIComponent(englishPrompt);
+      // Используем модель flux и добавляем высокое качество
+      currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+      
+      resultImg.src = currentImageUrl;
+      
+      resultImg.onload = function() {
+        loading.style.display = 'none';
+        resultImg.style.display = 'block';
+        downloadBtn.style.display = 'inline-block';
+        genBtn.textContent = "Нарисовать еще";
+        addToHistory(currentImageUrl);
+      };
+
+      resultImg.onerror = function() {
+        loading.style.display = 'none';
+        alert("Ошибка генерации. Попробуй еще раз.");
+        genBtn.textContent = "Попробовать снова";
+      };
+    } catch (e) {
       loading.style.display = 'none';
-      alert("Ошибка! Не удалось загрузить картинку. Возможно, сервер перегружен. Попробуй через минуту.");
+      alert("Ошибка перевода. Попробуй еще раз.");
       genBtn.textContent = "Попробовать снова";
-    };
+    }
   }
 
   function startCooldown() {
@@ -142,7 +148,6 @@
     const interval = setInterval(() => {
       timeLeft--;
       timerSpan.textContent = timeLeft;
-
       if (timeLeft <= 0) {
         clearInterval(interval);
         isCooldown = false;
@@ -166,11 +171,9 @@
       historyDiv.style.display = 'none';
       return;
     }
-
     historyTitle.style.display = 'block';
     historyDiv.style.display = 'grid';
     historyDiv.innerHTML = ''; 
-
     historyArray.forEach(url => {
       const img = document.createElement('img');
       img.src = url;
@@ -192,7 +195,6 @@
       const response = await fetch(currentImageUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      
       const a = document.createElement('a');
       a.href = url;
       a.download = 'neuro_art.jpg';
@@ -200,10 +202,9 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
       downloadBtn.textContent = "💾 Скачать картинку";
     } catch (e) {
-      alert("Не удалось скачать. Нажми на картинку правой кнопкой мыши и выбери 'Сохранить изображение'.");
+      alert("Не удалось скачать. Нажми правой кнопкой на картинку -> Сохранить.");
       downloadBtn.textContent = "💾 Скачать картинку";
     }
   }
