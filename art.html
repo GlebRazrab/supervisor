@@ -41,7 +41,7 @@
 
 <div class="container">
   <h1>🎨 Нейро-Художник</h1>
-  <p>Опиши, что хочешь увидеть (на русском), а нейросеть нарисует.</p>
+  <p>Опиши, что хочешь увидеть. Нейросеть (Flux) поймет даже русский!</p>
 
   <div class="presets">
     <button class="preset-btn" onclick="setPrompt('Кот в космосе, стиль аниме')">Кот в космосе</button>
@@ -54,7 +54,7 @@
   
   <div id="limit-text" class="limit-text">⏳ Подожди <span id="timer">45</span> секунд, сервер перегружен...</div>
 
-  <div id="loading">Нейросеть думает... ⏳</div>
+  <div id="loading">Нейросеть рисует... ⏳</div>
 
   <div id="image-container">
     <img id="result-img" alt="Сгенерированная картинка">
@@ -86,61 +86,38 @@
 
   function setPrompt(text) { document.getElementById('prompt-input').value = text; }
 
-  async function generateImage() {
+  function generateImage() {
     if (isCooldown) return;
     
     const prompt = document.getElementById('prompt-input').value;
     if (prompt.length < 3) { alert("Напиши описание подробнее!"); return; }
 
     startCooldown();
-    genBtn.textContent = "Генерация...";
+    genBtn.textContent = "Рисует...";
     loading.style.display = 'block';
-    loading.textContent = "Нейросеть обрабатывает запрос... ⏳";
     imageContainer.style.display = 'flex';
     resultImg.style.display = 'none';
     downloadBtn.style.display = 'none';
 
-    let finalPrompt = prompt; // По умолчанию используем русский текст
-
-    try {
-      // ПЫТАЕМСЯ ПЕРЕВЕСТИ ЧЕРЕЗ MYMEMORY API
-      const transResponse = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(prompt)}&langpair=ru|en`);
-      const transData = await transResponse.json();
-      
-      if (transData.responseData && transData.responseData.translatedText) {
-        finalPrompt = transData.responseData.translatedText;
-      }
-    } catch (e) {
-      console.log("Перевод не удался, используем оригинальный текст.");
-    }
-
-    try {
-      loading.textContent = "Рисую картинку... ⏳";
-      
-      // Генерируем картинку (используем модель flux)
-      const encodedPrompt = encodeURIComponent(finalPrompt);
-      currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
-      
-      resultImg.src = currentImageUrl;
-      
-      resultImg.onload = function() {
-        loading.style.display = 'none';
-        resultImg.style.display = 'block';
-        downloadBtn.style.display = 'inline-block';
-        genBtn.textContent = "Нарисовать еще";
-        addToHistory(currentImageUrl);
-      };
-
-      resultImg.onerror = function() {
-        loading.style.display = 'none';
-        alert("Ошибка генерации. Сервер перегружен. Попробуй еще раз.");
-        genBtn.textContent = "Попробовать снова";
-      };
-    } catch (e) {
+    // Отправляем твой русский текст прямо в генератор (модель flux)
+    const encodedPrompt = encodeURIComponent(prompt);
+    currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+    
+    resultImg.src = currentImageUrl;
+    
+    resultImg.onload = function() {
       loading.style.display = 'none';
-      alert("Ошибка. Попробуй еще раз.");
+      resultImg.style.display = 'block';
+      downloadBtn.style.display = 'inline-block';
+      genBtn.textContent = "Нарисовать еще";
+      addToHistory(currentImageUrl);
+    };
+
+    resultImg.onerror = function() {
+      loading.style.display = 'none';
+      alert("Ошибка генерации. Сервер перегружен. Нажми 'Попробовать снова'.");
       genBtn.textContent = "Попробовать снова";
-    }
+    };
   }
 
   function startCooldown() {
@@ -209,7 +186,7 @@
       URL.revokeObjectURL(url);
       downloadBtn.textContent = "💾 Скачать картинку";
     } catch (e) {
-      alert("Не удалось скачать. Нажми правой кнопкой на картинку -> Сохранить.");
+        alert("Не удалось скачать. Нажми правой кнопкой на картинку -> Сохранить изображение.");
       downloadBtn.textContent = "💾 Скачать картинку";
     }
   }
