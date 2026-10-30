@@ -41,6 +41,7 @@
 
 <div class="container">
   <a href="index.html" style="display: inline-block; margin-bottom: 15px; color: #a78bfa; text-decoration: none; font-weight: bold; font-size: 16px;">← На главную</a>
+  
   <h1>🎨 Нейро-Художник</h1>
   <p>Опиши, что хочешь увидеть. Нейросеть (Flux) поймет даже русский!</p>
 
@@ -100,7 +101,6 @@
     resultImg.style.display = 'none';
     downloadBtn.style.display = 'none';
 
-    // Отправляем твой русский текст прямо в генератор (модель flux)
     const encodedPrompt = encodeURIComponent(prompt);
     currentImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
     
@@ -187,7 +187,7 @@
       URL.revokeObjectURL(url);
       downloadBtn.textContent = "💾 Скачать картинку";
     } catch (e) {
-        alert("Не удалось скачать. Нажми правой кнопкой на картинку -> Сохранить изображение.");
+      alert("Не удалось скачать. Нажми правой кнопкой на картинку -> Сохранить изображение.");
       downloadBtn.textContent = "💾 Скачать картинку";
     }
   }
