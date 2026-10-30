@@ -65,7 +65,7 @@
 </div>
 
 <script>
- const validPromoCodes = ["GLEB2024", "FREE_TEACHER", "TEST100"];
+  const validPromoCodes = ["GLEB2024", "FREE_TEACHER", "TEST100"];
 
   function checkPromo() {
     const input = document.getElementById('promo-input').value.toUpperCase().trim();
@@ -104,34 +104,48 @@
     btn.disabled = true;
     btn.textContent = "Генерация...";
 
-    const prompt = encodeURIComponent("Составь очень подробный и развернутый план урока на тему: " + topic + ". Распиши цели, задачи, оборудование и ход урока.");
-    
-    let success = false;
-    for (let i = 0; i < 3; i++) {
-      try {
-        const response = await fetch("https://text.pollinations.ai/" + prompt);
-        if (response.ok) {
-          const aiText = await response.text();
-          resultDiv.style.display = 'block';
-          resultDiv.innerHTML = aiText.replace(/\n/g, '<br>');
-          window.generatedText = aiText;
-          actionBtns.style.display = 'flex';
-          success = true;
-          break;
-        }
-      } catch (error) {
-        await new Promise(r => setTimeout(r, 2000)); 
+    try {
+      // Отправляем запрос на наш сервер Deno
+      const response = await fetch("https://supervisor.glebrazrab.deno.net", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { 
+              role: "system", 
+              content: "Ты — опытный методист и учитель. Составь ОЧЕНЬ ПОДРОБНЫЙ и развернутый план урока (минимум на 1 страницу текста). Распиши каждый этап урока детально, с примерами вопросов для учеников. Структурируй ответ строго по пунктам: 1. Тема и класс. 2. Цели и задачи. 3. Оборудование. 4. Ход урока (Организационный момент, Актуализация знаний, Изучение нового материала, Закрепление, Рефлексия, Домашнее задание). Пиши понятным, профессиональным языком."
+            },
+            { 
+              role: "user", 
+              content: "Тема: " + topic 
+            }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
       }
-    }
 
-    if (!success) {
+      const aiText = data.choices[0].message.content;
+      
       resultDiv.style.display = 'block';
-      resultDiv.innerHTML = `<span style="color: #f87171;">Ошибка: Сервер временно перегружен. Попробуй нажать кнопку еще раз.</span>`;
-    }
+      resultDiv.innerHTML = aiText.replace(/\n/g, '<br>');
+      
+      window.generatedText = aiText;
+      actionBtns.style.display = 'flex';
 
-    loading.style.display = 'none';
-    btn.disabled = false;
-    btn.textContent = "Составить план урока";
+    } catch (error) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<span style="color: #f87171;">Ошибка: ${error.message}</span>`;
+    } finally {
+      loading.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = "Составить план урока";
+    }
   }
 
   function clearForm() {
@@ -173,4 +187,4 @@
   }
 </script>
 </body>
-</html> 
+</html>
