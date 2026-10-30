@@ -105,12 +105,11 @@
     btn.textContent = "Генерация...";
 
     try {
-      // Отправляем запрос на наш сервер Deno
       const response = await fetch("https://supervisor.glebrazrab.deno.net", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b", // <-- ИСПРАВЛЕННАЯ МОДЕЛЬ
           messages: [
             { 
               role: "system", 
