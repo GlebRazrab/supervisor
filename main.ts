@@ -13,8 +13,12 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       
-      // ВСТАВЬ СЮДА СВОЙ КЛЮЧ ОТ GROQ (gsk_...)
-      const GROQ_API_KEY = "ВСТАВЬ_СЮДА_СВОЙ_КЛЮЧ";
+      // Берем ключ из секретных настроек Deno, а не из кода
+      const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+      
+      if (!GROQ_API_KEY) {
+         throw new Error("Ключ не настроен на сервере");
+      }
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
