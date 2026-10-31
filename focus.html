@@ -3,34 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Умный Фокус</title>
+<title>Умный Фокус (Камера)</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
   body { background: #000; color: #fff; overflow: hidden; height: 100vh; }
   
-  #video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.2; z-index: 1; transition: opacity 0.5s; }
-  #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); z-index: 2; pointer-events: none; opacity: 0.5; }
+  /* Видео на фоне */
+  #video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.4; z-index: 1; }
+  #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); z-index: 2; pointer-events: none; }
   
-  #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.4); transition: background 0.5s; }
+  /* Интерфейс поверх видео */
+  #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   
   /* Кнопка "На главную" */
-  #back-btn { position: absolute; top: 20px; right: 20px; color: #4ade80; text-decoration: none; font-weight: bold; font-size: 16px; z-index: 20; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; transition: 0.3s; }
+  #back-btn { position: absolute; top: 20px; right: 20px; color: #4ade80; text-decoration: none; font-weight: bold; font-size: 16px; z-index: 20; background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 8px; transition: 0.3s; }
   #back-btn:hover { background: rgba(0,0,0,0.9); }
 
-  #status { position: absolute; top: 20px; left: 20px; font-size: 18px; font-weight: bold; color: #4ade80; text-shadow: 1px 1px 3px #000; }
+  /* Статус и счетчик */
+  #status { position: absolute; top: 20px; left: 20px; font-size: 22px; font-weight: bold; color: #4ade80; text-shadow: 1px 1px 4px #000; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 8px; }
   #status.bad { color: #f87171; }
   
-  #phase-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
-  
-  #timer { font-size: 100px; font-weight: 800; text-shadow: 0 4px 15px rgba(0,0,0,0.8); margin-bottom: 20px; font-variant-numeric: tabular-nums; }
-  
-  .btn { border: none; border-radius: 30px; padding: 15px 40px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); margin: 10px; }
+  #counter { position: absolute; top: 80px; left: 20px; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 4px #000; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; }
+
+  /* Кнопки управления */
+  .btn { border: none; border-radius: 30px; padding: 18px 50px; font-size: 22px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.6); margin: 10px; }
   #startBtn { background: #4ade80; color: #000; }
-  #startBtn:hover { transform: scale(1.05); }
+  #startBtn:hover { transform: scale(1.05); background: #22c55e; }
   #stopBtn { background: #f87171; color: #000; display: none; }
-  #stopBtn:hover { transform: scale(1.05); }
+  #stopBtn:hover { transform: scale(1.05); background: #ef4444; }
   
-  #loading { position: absolute; z-index: 20; background: rgba(0,0,0,0.9); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; text-align: center; padding: 20px; }
+  /* Загрузка */
+  #loading { position: absolute; z-index: 20; background: rgba(0,0,0,0.9); width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 20px; text-align: center; padding: 20px; font-weight: bold; color: #38bdf8; }
 </style>
 </head>
 <body>
@@ -39,17 +42,16 @@
 <canvas id="canvas"></canvas>
 
 <div id="ui">
-  <!-- Кнопка возврата в меню -->
   <a href="index.html" id="back-btn">← На главную</a>
   
-  <div id="status">Ожидание...</div>
-  <div id="phase-title">Готов к работе</div>
-  <div id="timer">25:00</div>
-  <button id="startBtn" class="btn">Начать</button>
-  <button id="stopBtn" class="btn">Закончить</button>
+  <div id="status">Камера выключена</div>
+  <div id="counter">Отвлечений: 0</div>
+  
+  <button id="startBtn" class="btn">Включить слежку</button>
+  <button id="stopBtn" class="btn">Остановить</button>
 </div>
 
-<div id="loading">Загрузка нейросети...<br>Подожди пару секунд</div>
+<div id="loading">Загрузка нейросети...<br>Пожалуйста, подожди</div>
 
 <script type="module">
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
@@ -58,26 +60,18 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
-const timerEl = document.getElementById('timer');
-const phaseTitleEl = document.getElementById('phase-title');
+const counterEl = document.getElementById('counter');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const loadingEl = document.getElementById('loading');
-const uiEl = document.getElementById('ui');
 
-const WORK_TIME = 25 * 60; // 25 минут
-const BREAK_TIME = 5 * 60; // 5 минут
-
-let currentPhase = 'work'; // 'work' или 'break'
-let timeLeft = WORK_TIME; 
-let timerInterval = null;
-let isRunning = false;
 let faceLandmarker;
-
+let isRunning = false;
+let distractions = 0;
 let awaySince = null;
 let counted = false;
-let totalDistractions = 0;
 
+// Озвучка
 function speak(text) {
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -86,6 +80,7 @@ function speak(text) {
   speechSynthesis.speak(u);
 }
 
+// Загрузка модели
 async function loadModel() {
   const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm');
   faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
@@ -94,6 +89,7 @@ async function loadModel() {
   });
 }
 
+// Проверка поворота головы
 function headTurned(lm) {
   const nose = lm[1], lCheek = lm[234], rCheek = lm[454];
   const dl = Math.hypot(nose.x - lCheek.x, nose.y - lCheek.y);
@@ -102,12 +98,14 @@ function headTurned(lm) {
   return ratio < 0.65 || ratio > 1 / 0.65;
 }
 
+// Главный цикл
 function loop() {
   if (!isRunning) return;
 
-  // СЛЕДИМ ЗА ЛИЦОМ ТОЛЬКО ВО ВРЕМЯ РАБОТЫ
-  if (currentPhase === 'work' && video.readyState >= 2) {
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  if (video.readyState >= 2) {
+    canvas.width = video.videoWidth; 
+    canvas.height = video.videoHeight;
+    
     const res = faceLandmarker.detectForVideo(video, performance.now());
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -115,175 +113,92 @@ function loop() {
     if (res.faceLandmarks.length) {
       const lm = res.faceLandmarks[0];
       distracted = headTurned(lm);
-      ctx.beginPath(); ctx.arc(lm[1].x * canvas.width, lm[1].y * canvas.height, 9, 0, Math.PI*2);
-      ctx.fillStyle = distracted ? '#f87171' : '#4ade80'; ctx.fill();
-    } else { distracted = true; }
+      
+      // Рисуем точку на носу (зеленую или красную)
+      ctx.beginPath(); 
+      ctx.arc(lm[1].x * canvas.width, lm[1].y * canvas.height, 10, 0, Math.PI*2);
+      ctx.fillStyle = distracted ? '#f87171' : '#4ade80'; 
+      ctx.fill();
+    } else { 
+      distracted = true; // Лица нет в кадре
+    }
 
     const now = performance.now() / 1000;
+    
     if (distracted) {
-      if (awaySince === null) { awaySince = now; counted = false; }
-      else if (now - awaySince > 4 && !counted) { 
-        totalDistractions++;
+      if (awaySince === null) { 
+        awaySince = now; 
+        counted = false; 
+      } else if (now - awaySince > 3 && !counted) { // 3 секунды отвлечения
+        distractions++;
+        counterEl.textContent = `Отвлечений: ${distractions}`;
         counted = true;
-        speak('Вернись к работе');
+        speak('Вернись к урокам');
       }
-    } else { awaySince = null; counted = false; }
+    } else { 
+      awaySince = null; 
+      counted = false; 
+    }
 
     statusEl.textContent = distracted ? 'ОТВЛЁКСЯ' : 'В ФОКУСЕ';
     statusEl.className = distracted ? 'bad' : '';
-  } else {
-    // Во время отдыха просто очищаем экран
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    statusEl.textContent = 'ОТДЫХ';
-    statusEl.className = '';
   }
 
   requestAnimationFrame(loop);
 }
 
-function updateTimer() {
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
-  timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function startPhase() {
-  isRunning = true;
-  startBtn.style.display = 'none';
-  stopBtn.style.display = 'block';
+// Кнопка Старт
+startBtn.addEventListener('click', async () => {
+  startBtn.textContent = 'Загрузка...';
+  startBtn.disabled = true;
   
-  if (currentPhase === 'work') {
-    timeLeft = WORK_TIME;
-    phaseTitleEl.textContent = 'Время работать';
-    timerEl.style.color = '#fff';
-    uiEl.style.background = 'rgba(0, 0, 0, 0.4)';
-    speak('Начинаем 25 минут фокуса.');
-  } else {
-    timeLeft = BREAK_TIME;
-    phaseTitleEl.textContent = 'Время отдыхать';
-    timerEl.style.color = '#60a5fa'; // Синий цвет
-    uiEl.style.background = 'rgba(0, 0, 50, 0.6)'; // Синеватый фон
-    speak('Молодец! 5 минут отдыха. Можешь отойти.');
-  }
-  
-  updateTimer();
-  if(currentPhase === 'work') loop(); // Запускаем камеру, если это работа
-
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    updateTimer();
-    
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      switchPhase();
+  try {
+    // Включаем камеру
+    if (!video.srcObject) {
+      video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      await video.play();
     }
-  }, 1000);
-}
-
-function switchPhase() {
-  if (currentPhase === 'work') {
-    currentPhase = 'break';
-    speak(`Работа окончена. Ты отвлекся ${totalDistractions} раз. Время отдохнуть.`);
-    totalDistractions = 0;
-    setTimeout(startPhase, 3000); // Небольшая пауза перед стартом отдыха
-  } else {
-    currentPhase = 'work';
-    speak('Отдых закончен. Возвращаемся к работе.');
-    setTimeout(startPhase, 3000);
+    // Загружаем нейросеть (если еще не загружена)
+    if (!faceLandmarker) {
+      await loadModel();
+    }
+    
+    loadingEl.style.display = 'none';
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'block';
+    
+    isRunning = true;
+    distractions = 0;
+    counterEl.textContent = `Отвлечений: 0`;
+    speak('Слежка включена. Сосредоточься.');
+    
+    loop(); // Запускаем цикл
+    
+  } catch (e) {
+    alert('Ошибка камеры: ' + e.message);
+    startBtn.textContent = 'Включить слежку';
+    startBtn.disabled = false;
   }
-}
+});
 
-function stopFocus() {
+// Кнопка Стоп
+stopBtn.addEventListener('click', () => {
   isRunning = false;
-  clearInterval(timerInterval);
-  if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   stopBtn.style.display = 'none';
   startBtn.style.display = 'block';
-  startBtn.textContent = 'Начать заново';
-  currentPhase = 'work';
-  timeLeft = WORK_TIME;
-  updateTimer();
-  phaseTitleEl.textContent = 'Готов к работе';
-  timerEl.style.color = '#fff';
-  uiEl.style.background = 'rgba(0, 0, 0, 0.4)';
-  statusEl.textContent = 'Ожидание...';
-  speak('Таймер остановлен.');
-}
-
-startBtn.addEventListener('click', async () => {
-  startBtn.textContent = 'Загрузка...';
-  startBtn.disabled = true;
+  startBtn.textContent = 'Включить слежку';
+  startBtn.disabled = false;
   
-  try {
-    if (!video.srcObject) {
-      video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-      await video.play();
-    }
-    if (!faceLandmarker) {
-      await loadModel();
-    }
-    loadingEl.style.display = 'none';
-    startBtn.disabled = false;
-    startPhase();
-  } catch (e) {
-    alert('Ошибка камеры: ' + e.message);
-    startBtn.textContent = 'Начать';
-    startBtn.disabled = false;
-  }
-});
-
-stopBtn.addEventListener('click', stopFocus);
-
-window.addEventListener('load', async () => {
-  try {
-    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    await video.play();
-    await loadModel();
-    loadingEl.style.display = 'none';
-  } catch(e) {
-    loadingEl.textContent = "Ошибка: Разреши камеру и обнови страницу.";
-  }
-});
-</script>
-</body>
-</html>statusEl.textContent = 'Ожидание...';
-  speak('Таймер остановлен.');
-}
-
-startBtn.addEventListener('click', async () => {
-  startBtn.textContent = 'Загрузка...';
-  startBtn.disabled = true;
+  statusEl.textContent = 'Камера выключена';
+  statusEl.className = '';
   
-  try {
-    if (!video.srcObject) {
-      video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-      await video.play();
-    }
-    if (!faceLandmarker) {
-      await loadModel();
-    }
-    loadingEl.style.display = 'none';
-    startBtn.disabled = false;
-    startPhase();
-  } catch (e) {
-    alert('Ошибка камеры: ' + e.message);
-    startBtn.textContent = 'Начать';
-    startBtn.disabled = false;
-  }
-});
-
-stopBtn.addEventListener('click', stopFocus);
-
-window.addEventListener('load', async () => {
-  try {
-    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    await video.play();
-    await loadModel();
-    loadingEl.style.display = 'none';
-  } catch(e) {
-    loadingEl.textContent = "Ошибка: Разреши камеру и обнови страницу.";
-  }
+  speak(`Слежка остановлена. Ты отвлекался ${distractions} раз.`);
 });
 </script>
 </body>
