@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Beat Saber</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; color: #fff; overflow: hidden; height: 100vh; font-family: system-ui, sans-serif; }
+  
+  #video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.3; z-index: 1; }
+  #gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+  
+  #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+  h1 { font-size: 24px; color: #38bdf8; text-shadow: 0 0 10px #38bdf8; }
+  #score { font-size: 48px; font-weight: bold; color: #fff; text-shadow: 0 0 20px #fff; }
+  
+  #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.9); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+  #start-screen h2 { font-size: 36px; color: #a78bfa; margin-bottom: 20px; }
+  #start-screen p { font-size: 18px; color: #94a3b8; margin-bottom: 30px; max-width: 600px; line-height: 1.5; }
+  .btn { background: #8b5cf6; color: #fff; padding: 15px 40px; border-radius: 30px; border: none; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
+  .btn:hover { background: #7c3aed; transform: scale(1.05); }
+  
+  #back-btn { position: absolute; top: 20px; right: 20px; color: #4ade80; text-decoration: none; font-weight: bold; z-index: 25; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<video id="video" autoplay playsinline muted></video>
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <h1>Web Beat Saber</h1>
+  <div id="score">0</div>
+</div>
+
+<a href="index.html" id="back-btn">← На главную</a>
+
+<div id="start-screen">
+  <h2>Разруби кубики руками!</h2>
+  <p>Разреши доступ к камере, встань так, чтобы твои руки были видны, и начни махать ими по кубикам, которые летят на тебя. Управление — жестами рук!</p>
+  <button class="btn" onclick="startGame()">Играть</button>
+</div>
+
+<script type="module">
+import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const startScreen = document.getElementById('start-screen');
+
+let handLandmarker;
+let stream;
+let gameLoopId;
+let isPlaying = false;
+
+let score = 0;
+let blocks = [];
+let hands = [];
+
+// Функция загрузки нейросети для рук
+async function loadModel() {
+  const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm');
+  handLandmarker = await HandLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: 'GPU' },
+    runningMode: 'VIDEO',
+    numHands: 2
+  });
+}
+
+async function startGame() {
+  startScreen.style.display = 'none';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    
+    if (!handLandmarker) await loadModel();
+    
+    isPlaying = true;
+    score = 0;
+    scoreEl.textContent = score;
+    blocks = [];
+    
+    // Настраиваем размер канваса под окно
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    spawnBlock(); // Запускаем спавн кубиков
+    requestAnimationFrame(gameLoop);
+    
+  } catch (e) {
+    alert("Ошибка камеры: " + e.message);
+    startScreen.style.display = 'flex';
+  }
+}
+
+// Создание кубика
+function spawnBlock() {
+  if (!isPlaying) return;
+  blocks.push({
+    x: Math.random() * (canvas.width - 100) + 50,
+    y: -100,
+    size: 80,
+    color: Math.random() > 0.5 ? '#f87171' : '#38bdf8', // Красные или синие
+    speed: 5 + Math.random() * 5 // Разная скорость
+  });
+  // Следующий кубик через 1 секунду
+  setTimeout(spawnBlock, 1000);
+}
+
+// Главный цикл игры
+function gameLoop() {
+  if (!isPlaying) return;
+  
+  // Очищаем экран
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Распознаем руки
+  if (video.readyState >= 2) {
+    const results = handLandmarker.detectForVideo(video, performance.now());
+    hands = [];
+    
+    if (results.landmarks) {
+      for (const landmarks of results.landmarks) {
+        // Берем кончик указательного пальца (8) и основания ладони (0)
+        const indexFinger = { x: landmarks[8].x * canvas.width, y: landmarks[8].y * canvas.height };
+        const wrist = { x: landmarks[0].x * canvas.width, y: landmarks[0].y * canvas.height };
+        
+        hands.push(indexFinger);
+        hands.push(wrist);
+        
+        // Рисуем точки на руках
+        ctx.beginPath();
+        ctx.arc(indexFinger.x, indexFinger.y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = '#4ade80';
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.shadowBlur = 0; // Сбрасываем тень
+      }
+    }
+  }
+  
+  // Двигаем и рисуем кубики
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    let b = blocks[i];
+    b.y += b.speed;
+    
+    // Рисуем кубик
+    ctx.fillStyle = b.color;
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 15;
+    ctx.fillRect(b.x, b.y, b.size, b.size);
+    ctx.shadowBlur = 0;
+    
+    // Проверка на столкновение с руками
+    let hit = false;
+    for (let h of hands) {
+      if (h.x > b.x && h.x < b.x + b.size && h.y > b.y && h.y < b.y + b.size) {
+        hit = true;
+        break;
+      }
+    }
+    
+    if (hit) {
+      // Рука коснулась кубика
+      blocks.splice(i, 1);
+      score += 10;
+      scoreEl.textContent = score;
+      // Звук удара (можно добавить позже)
+    } else if (b.y > canvas.height) {
+      // Кубик упал вниз, убираем его
+      blocks.splice(i, 1);
+    }
+  }
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// Изменение размера окна
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+</script>
+</body>
+</html>
