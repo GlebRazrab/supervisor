@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Обучалка</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+  body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 700px; }
+  h1 { font-size: 28px; margin-bottom: 10px; color: #8b5cf6; text-align: center; }
+  p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; text-align: center; line-height: 1.5; }
+  
+  /* Переключатели режимов */
+  .modes { display: flex; gap: 10px; margin-bottom: 20px; }
+  .mode-btn { flex: 1; padding: 12px; border: 2px solid #475569; background: #0f172a; color: #fff; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 15px; }
+  .mode-btn.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+
+  textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 16px; height: 80px; resize: none; margin-bottom: 15px; outline: none; }
+  .btn-gen { background: #8b5cf6; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
+  .btn-gen:hover { background: #7c3aed; }
+  .btn-gen:disabled { background: #64748b; cursor: not-allowed; }
+  
+  #result { margin-top: 20px; background: #0f172a; padding: 20px; border-radius: 10px; border: 1px solid #334155; display: none; white-space: pre-wrap; font-size: 16px; line-height: 1.6; }
+  
+  #loading-text { display: none; color: #a78bfa; text-align: center; margin-top: 15px; font-weight: bold; font-size: 18px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" style="display: inline-block; margin-bottom: 15px; color: #8b5cf6; text-decoration: none; font-weight: bold; font-size: 16px;">← На главную</a>
+  
+  <h1>AI-Обучалка</h1>
+  <p>Твой личный репетитор. Выбери режим и задай вопрос!</p>
+
+  <div class="modes">
+    <button class="mode-btn active" id="mode-child" onclick="setMode('child')">🧒 Как для 5-летнего</button>
+    <button class="mode-btn" id="mode-slang" onclick="setMode('slang')">😎 Перевод сленга</button>
+    <button class="mode-btn" id="mode-teacher" onclick="setMode('teacher')">🎓 Как строгий учитель</button>
+  </div>
+  
+  <textarea id="topic-input" placeholder="Введи тему, слово или вопрос..."></textarea>
+  <button id="gen-btn" class="btn-gen" onclick="askAI()">Узнать!</button>
+  
+  <div id="loading-text">Нейросеть думает... ⏳</div>
+  <div id="result"></div>
+</div>
+
+<script>
+  let currentMode = 'child'; // По умолчанию - как для 5-летнего
+
+  function setMode(mode) {
+    currentMode = mode;
+    // Меняем активную кнопку
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('mode-' + mode).classList.add('active');
+    
+    // Меняем подсказку в поле ввода
+    const input = document.getElementById('topic-input');
+    if (mode === 'child') input.placeholder = "Например: Квантовая физика или Как работает интернет...";
+    if (mode === 'slang') input.placeholder = "Например: Краш, Вайб, Имба, Слэй...";
+    if (mode === 'teacher') input.placeholder = "Например: Теорема Пифагора или Вторая мировая война...";
+  }
+
+  async function askAI() {
+    const topic = document.getElementById('topic-input').value;
+    const resultDiv = document.getElementById('result');
+    const loading = document.getElementById('loading-text');
+    const btn = document.getElementById('gen-btn');
+    
+    if (topic.length < 2) {
+      alert("Напиши тему или вопрос!");
+      return;
+    }
+    
+    resultDiv.style.display = 'none';
+    loading.style.display = 'block';
+    btn.disabled = true;
+    btn.textContent = "Думаю...";
+
+    // Выбираем системный промпт в зависимости от режима
+    let systemPrompt = "";
+    if (currentMode === 'child') {
+      systemPrompt = "Ты — гениальный учитель для детей. Объясни тему так, будто мне 5 лет. Используй очень простые слова, короткие предложения, приводи примеры из жизни (игрушки, конфеты, животные). Не используй сложные термины. Текст должен быть понятным и смешным.";
+    } else if (currentMode === 'slang') {
+      systemPrompt = "Ты — эксперт по современному сленгу. Пользователь вводит слово. Твой ответ должен быть строго по структуре: 1. Значение (что это значит). 2. Пример (как говорят в школе). 3. Перевод на взрослый (как сказать, чтобы поняли родители). Пиши кратко, понятно и с юмором.";
+    } else if (currentMode === 'teacher') {
+      systemPrompt = "Ты — строгий, но справедливый профессор. Объясни тему подробно, академическим языком, с фактами и глубоким анализом. Используй сложные термины, но объясняй их. Представь, что пишешь конспект для студента университета.";
+    }
+
+    try {
+      const response = await fetch("https://supervisor.glebrazrab.deno.net", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-120b",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: topic }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+      }
+
+      const aiText = data.choices[0].message.content;
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = aiText.replace(/\n/g, '<br>');
+
+    } catch (error) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<span style="color: #f87171;">Ошибка: ${error.message}</span>`;
+    } finally {
+      loading.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = "Узнать!";
+    }
+  }
+</script>
+</body>
+</html>
