@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Умный Фокус (Камера)</title>
+<title>Умный Фокус</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
   body { background: #000; color: #fff; overflow: hidden; height: 100vh; }
@@ -70,6 +70,7 @@ let isRunning = false;
 let distractions = 0;
 let awaySince = null;
 let counted = false;
+let animationFrameId;
 
 // Озвучка
 function speak(text) {
@@ -114,7 +115,7 @@ function loop() {
       const lm = res.faceLandmarks[0];
       distracted = headTurned(lm);
       
-      // Рисуем точку на носу (зеленую или красную)
+      // Рисуем точку на носу
       ctx.beginPath(); 
       ctx.arc(lm[1].x * canvas.width, lm[1].y * canvas.height, 10, 0, Math.PI*2);
       ctx.fillStyle = distracted ? '#f87171' : '#4ade80'; 
@@ -144,13 +145,15 @@ function loop() {
     statusEl.className = distracted ? 'bad' : '';
   }
 
-  requestAnimationFrame(loop);
+  animationFrameId = requestAnimationFrame(loop);
 }
 
 // Кнопка Старт
 startBtn.addEventListener('click', async () => {
   startBtn.textContent = 'Загрузка...';
   startBtn.disabled = true;
+  loadingEl.style.display = 'flex';
+  loadingEl.textContent = 'Загрузка нейросети и камеры...';
   
   try {
     // Включаем камеру
@@ -178,12 +181,15 @@ startBtn.addEventListener('click', async () => {
     alert('Ошибка камеры: ' + e.message);
     startBtn.textContent = 'Включить слежку';
     startBtn.disabled = false;
+    loadingEl.style.display = 'none';
   }
 });
 
 // Кнопка Стоп
 stopBtn.addEventListener('click', () => {
   isRunning = false;
+  cancelAnimationFrame(animationFrameId);
+  
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
     video.srcObject = null;

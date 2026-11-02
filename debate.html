@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ИИ-Спорщик</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+  body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  .container { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 700px; }
+  h1 { font-size: 28px; margin-bottom: 10px; color: #f43f5e; text-align: center; }
+  p { font-size: 16px; color: #94a3b8; margin-bottom: 20px; text-align: center; line-height: 1.5; }
+  
+  .chat-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 15px; height: 300px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+  .message { padding: 10px 15px; border-radius: 15px; max-width: 80%; line-height: 1.4; font-size: 15px; }
+  .msg-user { background: #38bdf8; color: #000; align-self: flex-end; border-bottom-right-radius: 0; }
+  .msg-ai { background: #334155; color: #fff; align-self: flex-start; border-bottom-left-radius: 0; }
+  
+  textarea { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #475569; background: #0f172a; color: #fff; font-size: 16px; height: 80px; resize: none; margin-bottom: 15px; outline: none; }
+  .btn-gen { background: #f43f5e; color: #fff; padding: 15px; border-radius: 10px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
+  .btn-gen:hover { background: #e11d48; }
+  .btn-gen:disabled { background: #64748b; cursor: not-allowed; }
+  
+  .badge { display: inline-block; background: #f43f5e; color: #fff; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 20px; }
+  #loading-text { display: none; color: #f43f5e; text-align: center; margin-top: 15px; font-weight: bold; font-size: 18px;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" style="display: inline-block; margin-bottom: 15px; color: #f43f5e; text-decoration: none; font-weight: bold; font-size: 16px;">← На главную</a>
+  
+  <div style="text-align: center;"><div class="badge">Битва умов</div></div>
+  <h1>ИИ-Спорщик</h1>
+  <p>Напиши любое утверждение. ИИ будет спорить с тобой. Твоя задача — переубедить его!</p>
+
+  <div class="chat-box" id="chat-box">
+    <div class="message msg-ai">Привет! Я готов поспорить с тобой на любую тему. Напиши свое первое утверждение (например: "Аниме лучше, чем Марвел"), и я докажу, что ты неправ!</div>
+  </div>
+  
+  <textarea id="topic-input" placeholder="Твое утверждение..."></textarea>
+  <button id="gen-btn" class="btn-gen" onclick="sendArgument()">Отправить аргумент</button>
+  
+  <div id="loading-text">ИИ придумывает ответ... ⏳</div>
+</div>
+
+<script>
+  const chatBox = document.getElementById('chat-box');
+  let chatHistory = []; // Храним историю диалога, чтобы ИИ помнил контекст
+
+  async function sendArgument() {
+    const userText = document.getElementById('topic-input').value;
+    const inputField = document.getElementById('topic-input');
+    const loading = document.getElementById('loading-text');
+    const btn = document.getElementById('gen-btn');
+    
+    if (userText.length < 2) {
+      alert("Напиши свой аргумент!");
+      return;
+    }
+    
+    // Добавляем сообщение пользователя в чат
+    addMessageToChat('user', userText);
+    inputField.value = '';
+    
+    // Добавляем в историю
+    chatHistory.push({ role: "user", content: userText });
+    
+    loading.style.display = 'block';
+    btn.disabled = true;
+    btn.textContent = "Думаю...";
+
+    try {
+      const response = await fetch("https://supervisor.glebrazrab.deno.net", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: "openai/gpt-oss-120b",
+          messages: [
+            { 
+              role: "system", 
+              content: "Ты — очень умный, но немного высокомерный спорщик. Твоя цель — спорить с пользователем и доказывать свою точку зрения. Приводи аргументы, факты, используй сарказм. Но если пользователь привел реально неопровержимый факт или логичный аргумент, ты должен признать поражение (написать что-то вроде 'Окей, тут ты меня сделал' или 'Твоя взяла'). Не сдавайся слишком легко, но и не спорь до абсурда, если тебя победили. Пиши кратко (2-3 предложения)."
+            },
+            ...chatHistory // Передаем всю историю, чтобы ИИ помнил, о чем вы говорили
+          ]
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+      }
+
+      const aiText = data.choices[0].message.content;
+      
+      // Добавляем ответ ИИ в чат
+      addMessageToChat('ai', aiText);
+      chatHistory.push({ role: "assistant", content: aiText });
+
+    } catch (error) {
+      addMessageToChat('ai', `Ошибка: ${error.message}`);
+    } finally {
+      loading.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = "Отправить аргумент";
+    }
+  }
+
+  function addMessageToChat(sender, text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = sender === 'user' ? 'message msg-user' : 'message msg-ai';
+    msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+    chatBox.appendChild(msgDiv);
+    // Автоскролл вниз
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+</script>
+</body>
+</html>
