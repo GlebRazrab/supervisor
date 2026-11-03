@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Школьный Маркет</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+  body { background: #f8fafc; color: #0f172a; min-height: 100vh; padding: 20px; }
+  
+  .container { max-width: 800px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+  h1 { font-size: 28px; color: #3b82f6; }
+  a.back { color: #64748b; text-decoration: none; font-weight: bold; }
+  
+  /* Форма добавления */
+  .add-form { background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+  .add-form h2 { font-size: 20px; margin-bottom: 15px; }
+  .form-group { margin-bottom: 15px; }
+  .form-group label { display: block; font-size: 14px; color: #475569; margin-bottom: 5px; font-weight: bold; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
+  .btn-add { background: #3b82f6; color: #fff; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
+  .btn-add:hover { background: #2563eb; }
+
+  /* Фильтры */
+  .filters { display: flex; gap: 10px; margin-bottom: 20px; }
+  .filter-btn { background: #e2e8f0; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; color: #475569; transition: 0.3s; }
+  .filter-btn.active { background: #3b82f6; color: #fff; }
+
+  /* Список товаров */
+  .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+  .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; }
+  .card-city { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 10px; display: inline-block; margin-bottom: 10px; }
+  .card h3 { font-size: 18px; margin-bottom: 10px; }
+  .card .price { font-size: 22px; font-weight: bold; color: #10b981; margin-bottom: 10px; }
+  .card .desc { font-size: 14px; color: #64748b; margin-bottom: 15px; line-height: 1.4; }
+  .card .btn-chat { background: #f1f5f9; color: #3b82f6; border: none; padding: 10px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; transition: 0.3s; }
+  .card .btn-chat:hover { background: #dbeafe; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🛒 Школьный Маркет</h1>
+    <a href="index.html" class="back">← На главную</a>
+  </header>
+
+  <!-- Форма добавления товара -->
+  <div class="add-form">
+    <h2>Продать вещь</h2>
+    <div class="form-group">
+      <label>Название</label>
+      <input type="text" id="title" placeholder="Например: Учебник по физике 7 класс">
+    </div>
+    <div class="form-group">
+      <label>Цена (руб)</label>
+      <input type="number" id="price" placeholder="500">
+    </div>
+    <div class="form-group">
+      <label>Город</label>
+      <select id="city">
+        <option value="Можга">Можга</option>
+        <option value="Ижевск">Ижевск</option>
+        <option value="Казань">Казань</option>
+        <option value="Москва">Москва</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Описание</label>
+      <textarea id="desc" rows="3" placeholder="Состояние, детали..."></textarea>
+    </div>
+    <button class="btn-add" onclick="addProduct()">Опубликовать</button>
+  </div>
+
+  <!-- Фильтры по городам -->
+  <div class="filters">
+    <button class="filter-btn active" onclick="filterCity('Все', this)">Все города</button>
+    <button class="filter-btn" onclick="filterCity('Можга', this)">Можга</button>
+    <button class="filter-btn" onclick="filterCity('Ижевск', this)">Ижевск</button>
+  </div>
+
+  <!-- Список товаров -->
+  <div class="products" id="products-list">
+    <!-- Сюда будут добавляться товары -->
+  </div>
+</div>
+
+<script>
+  // Пока что товары хранятся в памяти (потом переделаем на базу данных)
+  let products = [
+    { id: 1, title: "Учебник по алгебре", price: 300, city: "Можга", desc: "В хорошем состоянии, 8 класс." },
+    { id: 2, title: "Набор гелевых ручек", price: 150, city: "Ижевск", desc: "12 цветов, новые." }
+  ];
+
+  let currentCity = 'Все';
+
+  function renderProducts() {
+    const list = document.getElementById('products-list');
+    list.innerHTML = '';
+
+    const filtered = currentCity === 'Все' ? products : products.filter(p => p.city === currentCity);
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<p style="color: #64748b;">В этом городе пока нет товаров.</p>';
+      return;
+    }
+
+    filtered.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-city">📍 ${p.city}</div>
+        <h3>${p.title}</h3>
+        <div class="price">${p.price} ₽</div>
+        <div class="desc">${p.desc}</div>
+        <button class="btn-chat" onclick="openChat('${p.title}')">💬 Написать продавцу</button>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function addProduct() {
+    const title = document.getElementById('title').value;
+    const price = document.getElementById('price').value;
+    const city = document.getElementById('city').value;
+    const desc = document.getElementById('desc').value;
+
+    if (!title || !price) {
+      alert("Заполни название и цену!");
+      return;
+    }
+
+    // Добавляем новый товар в начало списка
+    products.unshift({
+      id: Date.now(),
+      title: title,
+      price: price,
+      city: city,
+      desc: desc
+    });
+
+    // Очищаем форму
+    document.getElementById('title').value = '';
+    document.getElementById('price').value = '';
+    document.getElementById('desc').value = '';
+
+    renderProducts();
+    alert("Товар опубликован!");
+  }
+
+  function filterCity(city, btn) {
+    currentCity = city;
+    // Меняем активную кнопку
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderProducts();
+  }
+
+  function openChat(productTitle) {
+    alert("Чат с продавцом товара: " + productTitle + "\n(Чат мы сделаем на следующем этапе!)");
+  }
+
+  // Первая отрисовка при загрузке
+  renderProducts();
+</script>
+
+</body>
+</html>
